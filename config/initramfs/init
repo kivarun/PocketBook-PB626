@@ -1,0 +1,33 @@
+#!/bin/sh
+# Phase 0 initramfs for the PocketBook PB626 / Touch Lux 3 (FEL-only boot).
+# Provides a UART shell; mounts nothing persistent and never touches
+# the internal (mmc2) or external (mmc0) microSD cards.
+
+/bin/busybox --install -s /bin
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts /run /tmp
+mount -t tmpfs tmpfs /run
+mount -t tmpfs tmpfs /tmp
+
+export PATH=/bin
+export HOME=/root
+export PS1='PB626-fel:# '
+export TERM=xterm-256color
+
+echo
+echo '================================================================'
+echo '  PB626 Phase 0 FEL-only Linux - initramfs UART shell ready'
+echo '----------------------------------------------------------------'
+echo "  kernel:   $(uname -r)"
+echo "  model:    $(cat /proc/device-tree/model 2>/dev/null || echo '?')"
+echo "  cmdline:  $(cat /proc/cmdline)"
+echo '  storage:  internal/external microSD left untouched (read-only)'
+echo '================================================================'
+echo 'UAT helpers: uname -a | cat /proc/cmdline | cat /proc/device-tree/model'
+echo '             cat /proc/partitions | ls /sys/class/input | dmesg'
+echo
+
+exec setsid cttyhack /bin/sh

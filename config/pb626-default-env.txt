@@ -1,0 +1,11 @@
+# Default environment for the PB626 Phase 0 FEL-only U-Boot.
+# Full replacement environment (CONFIG_ENV_USE_DEFAULT_ENV_TEXT_FILE):
+# nothing here touches persistent storage.
+#
+# bootcmd: wait for the host to push a FIT image to RAM over USB DFU
+# (alt-setting "boot" writes at 0x42000000), then boot it.
+# After the host detaches, dfu returns and bootm runs.
+
+bootdelay=0
+bootcmd=dfu 0 ram 0; bootm 0x42000000
+dfu_alt_info=boot ram 42000000 2000000

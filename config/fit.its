@@ -1,0 +1,62 @@
+/dts-v1/;
+
+// Single canonical Phase 0 boot artifact for the PB626.
+// Built with: mkimage -f config/fit.its build/artifacts/boot.itb
+// (/incbin/ paths are relative to the .its file's directory).
+
+/ {
+	description = "PocketBook PB626 Phase 0 FEL boot bundle";
+	#address-cells = <1>;
+
+	images {
+		kernel {
+			description = "Linux 6.12.110 sunxi";
+			data = /incbin/("../build/artifacts/zImage");
+			type = "kernel";
+			arch = "arm";
+			os = "linux";
+			compression = "none";
+			load = <0x42000000>;
+			entry = <0x42000000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt {
+			description = "PocketBook Touch Lux 3 device tree";
+			data = /incbin/("../build/artifacts/sun5i-a13-pocketbook-touch-lux-3.dtb");
+			type = "flat_dt";
+			arch = "arm";
+			compression = "none";
+			load = <0x44800000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		ramdisk {
+			description = "Phase 0 initramfs (BusyBox UART shell)";
+			data = /incbin/("../build/artifacts/initramfs.cpio.gz");
+			type = "ramdisk";
+			arch = "arm";
+			os = "linux";
+			compression = "none";
+			load = <0x45000000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+	};
+
+	configurations {
+		default = "pb626-fel";
+		pb626-fel {
+			description = "FEL-only boot to UART shell";
+			kernel = "kernel";
+			fdt = "fdt";
+			ramdisk = "ramdisk";
+			bootargs = "console=ttyS0,115200n8 loglevel=7 rdinit=/init";
+		};
+	};
+};

@@ -1,0 +1,53 @@
+# U-Boot for PocketBook PB626 / Touch Lux 3 (A13), FEL-only Phase 0 boot.
+#
+# No upstream source patches are needed for this board:
+#   - console:   CONFIG_CONS_INDEX=2 selects UART1, which arch/arm/mach-sunxi/
+#                board.c muxes to PG3/PG4 for MACH_SUN5I (the PB626 debug UART).
+#   - DRAM:      board/sunxi/dram_sun5i_auto.c auto-detects the 256 MiB DDR3
+#                (density/bus width) at DRAM_CLK=408 using the vendor-magic
+#                timings (default).
+#   - DT:        the PB626 device tree is upstream (dts/upstream, synced from
+#                Linux): allwinner/sun5i-a13-pocketbook-touch-lux-3.
+#
+# Boot behaviour is defined entirely by config/pb626-default-env.txt:
+#   bootcmd = "dfu 0 ram 0; bootm 0x42000000"
+# i.e. after FEL starts U-Boot, it waits for the host to push the FIT image
+# over USB DFU (to RAM), then boots it. No storage is touched:
+#   - env is nowhere (no MMC env read/write)
+#   - nothing is written to any block device.
+
+CONFIG_ARM=y
+CONFIG_ARCH_SUNXI=y
+CONFIG_SPL=y
+CONFIG_MACH_SUN5I=y
+CONFIG_OF_UPSTREAM=y
+CONFIG_DEFAULT_DEVICE_TREE="allwinner/sun5i-a13-pocketbook-touch-lux-3"
+
+# DRAM: 256 MiB DDR3 @ 408 MHz (auto-detected density/bus width)
+CONFIG_DRAM_CLK=408
+
+# Console: UART1 on PG3/PG4, 115200 8N1
+CONFIG_CONS_INDEX=2
+
+# U-Boot does not touch the AXP209; the kernel owns the PMIC.
+CONFIG_SUNXI_NO_PMIC=y
+
+# No persistent environment storage at all.
+CONFIG_ENV_IS_NOWHERE=y
+CONFIG_ENV_USE_DEFAULT_ENV_TEXT_FILE=y
+CONFIG_ENV_DEFAULT_ENV_TEXT_FILE="pb626-default-env.txt"
+
+# USB: OTG controller in gadget mode, DFU download to RAM.
+CONFIG_CMD_DFU=y
+CONFIG_DFU_RAM=y
+CONFIG_USB_MUSB_GADGET=y
+CONFIG_USB_GADGET_DOWNLOAD=y
+CONFIG_USB_EHCI_HCD=y
+CONFIG_USB_OHCI_HCD=y
+
+# FIT image boot (kernel + DTB + initramfs in one artifact).
+CONFIG_FIT=y
+CONFIG_SYS_BOOTM_LEN=0x1000000
+
+# Build perf: skip the (slow) zeroing of early malloc; harmless.
+# CONFIG_SYS_MALLOC_CLEAR_ON_INIT is not set
