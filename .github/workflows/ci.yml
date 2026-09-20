@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-env:
+    name: build environment smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build toolchain image
+        run: docker build -t pb626-build-env .
+
+      - name: Run build environment smoke tests
+        run: docker run --rm -v "$GITHUB_WORKSPACE":/workspace pb626-build-env /workspace/scripts/test-build-env.sh
