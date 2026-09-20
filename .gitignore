@@ -1,0 +1,9 @@
+/build/src/
+/build/out/
+/build/artifacts/*
+/build/log/*
+/build/host-tools/
+/build/initramfs/
+/build/scratch/
+/build/imgctx/
+!build/.gitkeep
