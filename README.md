@@ -11,13 +11,41 @@ Target hardware:
 
 ## Current status
 
-At this stage the repository contains only a reproducible build environment:
-a Docker image with the project toolchain, environment smoke tests, and CI.
-There is no kernel, U-Boot, rootfs, UI, emulator, or hardware support work
-yet.
+At this stage the repository contains a reproducible build environment
+plus the **Phase 0 FEL-only boot bundle**: the PB626 can be booted over
+USB FEL into a mainline Linux (6.12 LTS) with an interactive UART shell —
+no storage of the device is touched.
 
-The image is a project toolchain image. Agent/orchestrator tooling is
-intentionally not included.
+## Phase 0 — FEL-only boot
+
+Boot chain (one canonical path):
+
+    FEL (hold Menu button)
+      -> sunxi-fel uboot (SPL + U-Boot, console on UART1 PG3/PG4 @ 115200)
+      -> U-Boot waits in USB DFU mode (bootcmd: dfu 0 ram 0)
+      -> dfu-util pushes boot.itb (kernel + PB626 DTB + initramfs) to RAM
+      -> U-Boot boots the FIT -> Linux -> BusyBox UART shell
+
+Build (inside the toolchain container):
+
+```sh
+docker build -t pb626-build-env .
+docker run --rm -v "$PWD":/workspace pb626-build-env \
+    /workspace/scripts/build.sh
+```
+
+Boot (on the host, with the device in FEL mode; optional UART capture):
+
+```sh
+./scripts/fel-boot.sh --uart /dev/ttyUSB0
+```
+
+Artifacts land in `build/artifacts/` with `SHA256SUMS`; host tools
+(`sunxi-fel`, `dfu-util`) are built from pinned sources into
+`build/host-tools/`. See `docs/phase0-investigation.md` (research record,
+pinned versions) and `docs/phase0-uat.md` (acceptance test). No patches to
+upstream sources are required (see `patches/README.md`); the board specifics
+live in `config/`.
 
 ## Build environment
 
@@ -27,7 +55,8 @@ intentionally not included.
 - ARM hard-float cross toolchain: `arm-linux-gnueabihf` gcc/g++/binutils;
 - general tools: git, curl, ca-certificates, file, Python 3;
 - kernel/U-Boot build dependencies: bc, bison, flex, OpenSSL and libelf
-  headers, device-tree-compiler, u-boot-tools;
+  headers, device-tree-compiler, u-boot-tools, libusb-1.0 (for the
+  `sunxi-fel`/`dfu-util` host tools);
 - QEMU user-mode (`qemu-arm`) for running ARM binaries;
 - SDL2 development headers, reserved for a future simulated UI backend;
 - image/rootfs utilities: cpio, rsync, xz, e2fsprogs, dosfstools, mtools,
