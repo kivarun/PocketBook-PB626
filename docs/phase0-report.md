@@ -55,17 +55,21 @@ fragment, FIT, initramfs).
 * host gcc: `14.2.0-19`; GNU Make `4.4.1`
 * `dtc 1.7.2`, `mkimage 2025.01`, libusb-1.0, libgnutls, libfdt 1.7.2
 * build timestamp pinned via `SOURCE_DATE_EPOCH=946684800` and
-  `KBUILD_BUILD_USER/HOST` — two consecutive full rebuilds produce
-  **byte-identical** artifacts (verified).
+  `KBUILD_BUILD_USER/HOST`; the kernel build number and the UTS_VERSION
+  timestamp are pinned too (`KBUILD_BUILD_VERSION=1`,
+  `KBUILD_BUILD_TIMESTAMP` rendered from `SOURCE_DATE_EPOCH`) — without
+  them a full kernel rebuild stamps the wall clock and an incrementing
+  counter into the zImage. Two consecutive **full** rebuilds (fresh
+  kernel build tree) produce **byte-identical** artifacts (verified).
 
-## 7. Produced artifacts (build/artifacts/, SHA256)
+## 7. Produced artifacts (build/artifacts/, SHA256; fix-pass rebuild, see §13)
 
 ```
 f4990b374fcf91f377fd7151286d12f37667bde6636983fc0de653b845fb6b7e  u-boot-sunxi-with-spl.bin   (600,880 B)
-2fca69f706bceb14ff111b20636c67372bb0395d504add9b69f0d7722a956bfb  zImage                      (5,632,416 B)
+b4d3a3ac9893db056673ac90daab96d993227bdc8e016c156117d6ed17cb7878  zImage                      (5,632,440 B)
 20244270db5c810b6b5976d788aa0e09bd77fe58cab7cc04aad0d83b74a7d448  sun5i-a13-pocketbook-touch-lux-3.dtb (19,116 B)
 41a31920e680a2fff6286aa03b3b372a98f09f69e34c16993e76db17b24a9dc7  initramfs.cpio.gz           (1,040,623 B)
-5fdc6e93545b7aac8479350ef5484815cf6735d8393a6547908197f0289ec118  boot.itb                    (6,694,269 B)
+fc563a6bfc43da484698ad93a071ee7431ed16811291436979dcf8174ce9c0c4  boot.itb                    (6,694,293 B)
 ```
 
 Host tools (build/host-tools/):
@@ -213,3 +217,43 @@ procedure. Build-side verification performed here (see Local verification).
    console only) until the e-ink stack is mainlined.
 5. WiFi: ship `rtl8188eufw.bin`, enable `r8188eu`/`rtl8xxxu`, verify the
    LDO3 (vcc-wifi) regulator sequencing.
+
+## 13. Phase 0 review-fix pass record
+
+Scope kept closed: no Phase 1 work, no new boot paths, one canonical
+build and FEL boot path, `ENV_IS_NOWHERE`, RAM-only boot, no MMC writes.
+
+Fixes applied after the review (findings 1–8 of the review pass):
+
+1. UART wiring documentation made electrically safe: explicit cross
+   wiring with `PB626 VCC -> NOT CONNECTED`, prominent warning, and a
+   two-wire passive-capture note (`docs/phase0-uat.md` section 0).
+2. `fel-boot.sh --uart` is now a genuinely interactive session
+   (boot steps in the background, `picocom` in the foreground,
+   `--logfile` records the session); no read-only capture is described
+   as interactive anymore.
+3. Canonical non-overlapping RAM map in `config/ram-map.sh`; zImage
+   load/entry moved to `0x44000000` so the FIT download buffer and the
+   kernel destination no longer overlap; statically verified by
+   `scripts/check-phase0.sh` (see the map table in section 8).
+4. Source pin verification strengthened: git sources need the exact
+   pinned commit with a clean worktree; linux/busybox/dfu-util need the
+   pinned tarball sha256 on every run; the linux build tree is
+   re-extracted from the verified tarball and stamped.
+5. README/report status language now distinguishes "build and static
+   verification: complete" from "real-device UAT: pending".
+6. DFU detection requires exactly VID:PID 1f3a:1010 with alt setting 0
+   named "boot" and fails closed when ambiguous.
+7. FEL identity requires both `soc=00001625` and `(A13)`.
+8. `scripts/check-phase0.sh` regression gates cover all of the above
+   (run by `scripts/build.sh` before every build and by CI).
+
+Additional reproducibility defect found and fixed during the pass: the
+zImage embedded the wall clock and an incrementing build counter in
+`UTS_VERSION` (`KBUILD_BUILD_VERSION`/`KBUILD_BUILD_TIMESTAMP` unset);
+both are now pinned and two consecutive full rebuilds were verified
+byte-identical (`zImage b4d3a3ac…`, `boot.itb fc563a6b…`).
+
+The final RAM map, the exact FEL/DFU identity checks and the UART
+interaction method are documented in sections 8 and above; the final
+SHA of this fix pass is recorded in the delivery note.
