@@ -3,8 +3,8 @@
 Deterministic acceptance test for the PB626. Requires: PB626 in reach, a
 USB A-to-microB cable, a USB-UART adapter wired to the PB626 UART pads
 exactly as described in section 0 below, and a Linux host with USB
-access. **The external microSD must not be needed** (leave it out or
-empty).
+access (with `picocom` installed for the interactive console session).
+**The external microSD must not be needed** (leave it out or empty).
 
 ## 0. UART wiring — read before connecting anything
 
@@ -62,28 +62,46 @@ Expected (the important part is `(A13)`, SoC id 0x1625):
 AWUSBFEX soc=00001625(A13) 00000001 ver=0401 00 00 scratchpad=00000010 00000000 00000000
 ```
 
-## 4. Run the canonical FEL boot
+## 4. Run the canonical FEL boot (interactive UART session)
 
 ```sh
 ./scripts/fel-boot.sh --uart /dev/ttyUSB0     # adjust device name
 ```
 
-The script: checks checksums, boots U-Boot over FEL (SPL output visible on
-UART), waits for the U-Boot DFU gadget, pushes `boot.itb` to RAM at
-0x42000000, detaches DFU — U-Boot then boots the FIT and Linux starts
-(the kernel is copied out of the FIT blob to 0x44000000; the canonical
-layout lives in `config/ram-map.sh`).
+The script checks checksums, verifies the FEL identity (SoC id 0x1625,
+A13), boots U-Boot over FEL, waits for the U-Boot DFU gadget (USB
+1f3a:1010, alt 0 "boot"), pushes `boot.itb` to RAM at 0x42000000 and
+detaches DFU — U-Boot then boots the FIT and Linux starts (the kernel is
+copied out of the FIT blob to 0x44000000; the canonical layout lives in
+`config/ram-map.sh`).
 
-## 5. Capture UART output
+With `--uart`, the session is **interactive**: the boot steps run in the
+background while `picocom` owns your terminal, so SPL/U-Boot/kernel
+output appears live and you can type at the U-Boot prompt and at the
+initramfs shell. Exit picocom with `Ctrl-A Ctrl-X`; the script then
+reports whether the boot job completed. Without `--uart` the boot runs
+headless with no console attached.
 
-`build/log/uart.log` contains the full session (SPL banner, U-Boot, kernel,
-initramfs). Kernel messages show the correct device tree:
+If U-Boot ends up at a prompt instead of the DFU gadget (e.g. the host
+DFU push failed), type the manual fallback from the script's error
+message directly into the picocom session:
+
+```
+loadx 0x42000000    # then: sx -k build/artifacts/boot.itb < /dev/ttyUSB0 > /dev/ttyUSB0
+iminfo 0x42000000 && bootm 0x42000000
+```
+
+## 5. UART log
+
+`build/log/uart.log` is written by picocom itself (`--logfile`) and
+contains the full session (SPL banner, U-Boot, kernel, initramfs and
+everything typed). Kernel messages show the correct device tree:
 
 ```
 Machine model: PocketBook Touch Lux 3
 ```
 
-## 6. From the UART shell demonstrate
+## 6. From the UART shell (inside the picocom session) demonstrate
 
 ```
 uname -a

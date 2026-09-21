@@ -77,7 +77,9 @@ Host tools (build/host-tools/):
 
 ## 8. Exact FEL boot command
 
-Canonical (one script, UART capture included):
+Canonical (one script; with `--uart DEV` it runs the boot in the
+background while an interactive `picocom` session owns the terminal and
+logs to `build/log/uart.log`):
 
 ```sh
 ./scripts/fel-boot.sh --uart /dev/ttyUSB0
@@ -125,8 +127,9 @@ against `config/ram-map.sh` and fails the build otherwise.
 
 ## 9. UART boot log
 
-Pending the device-side UAT run (`build/log/uart.log` is captured by
-`scripts/fel-boot.sh --uart DEV`). What is expected at each stage:
+Pending the device-side UAT run (`build/log/uart.log` is recorded by
+picocom's `--logfile` in `scripts/fel-boot.sh --uart DEV`). What is
+expected at each stage:
 
 ```
 SPL: (no banner until DRAM init) ...

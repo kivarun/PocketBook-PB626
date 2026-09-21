@@ -13,8 +13,18 @@
 #
 # Usage: scripts/fel-boot.sh [--uart /dev/ttyUSB0]
 #
-# UART: pass --uart DEV to capture the console into build/log/uart.log
-# (read-only observation; the shell stays interactive on your terminal).
+# UART (--uart DEV): an interactive, bidirectional console session.
+#   - the boot steps run as a background job while picocom owns the
+#     terminal in the foreground, so you see SPL/U-Boot/kernel output
+#     from the very first byte and can type at the U-Boot prompt and,
+#     once Linux is up, at the initramfs shell (the UAT commands);
+#   - the full session is logged to build/log/uart.log via picocom's
+#     own --logfile (no second capture mechanism is used);
+#   - exit the session with Ctrl-A Ctrl-X (picocom's default); the
+#     script then reports the boot job's status and exits.
+#   Without --uart the boot runs headless (no console attached); the
+#   UART shell is then only observable by other means.
+#   picocom must be installed on the host (e.g. "apt install picocom").
 #
 # Requirements: sunxi-fel and dfu-util in build/host-tools/ (produced by
 # scripts/build.sh) or in PATH. Both need libusb-1.0 at runtime.
@@ -45,9 +55,12 @@ DFU_ALT="boot"
 # dfu_matches below: VID:PID plus the exact alt setting/name).
 DFU_VIDPID="1f3a:1010"
 DFU_WAIT_S=15
+UART_BAUD=115200
 
-say() { printf '\n==> %s\n' "$*"; }
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# say/die use \r\n so they stay readable on a raw-mode terminal (they
+# can print while picocom owns the tty in the --uart path).
+say() { printf '\r\n==> %s\r\n' "$*"; }
+die() { printf 'ERROR: %s\r\n' "$*" >&2; exit 1; }
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -70,6 +83,42 @@ find_tool() {
 FEL="$(find_tool sunxi-fel)"
 DFU_UTIL="$(find_tool dfu-util)"
 
+# The expected U-Boot download gadget, and nothing else: VID:PID
+# 1f3a:1010 (CONFIG_USB_GADGET_VENDOR_NUM / CONFIG_USB_GADGET_PRODUCT_NUM
+# defaults for ARCH_SUNXI) with alt setting 0 named exactly "boot" (from
+# dfu_alt_info). The FEL device itself (1f3a:efe8) has no DFU interface
+# and never matches; anything else or ambiguous fails closed.
+dfu_matches() {
+    "$DFU_UTIL" -l 2>/dev/null \
+        | grep -E "Found DFU: \[$DFU_VIDPID\].*alt=0, name=\"$DFU_ALT\""
+}
+
+do_boot() {
+    say "Booting U-Boot via FEL"
+    "$FEL" uboot "$ART/$UBOOT"
+
+    say "Waiting for the U-Boot DFU gadget (USB $DFU_VIDPID, alt 0 \"$DFU_ALT\")"
+    found=no
+    for _ in $(seq 1 "$DFU_WAIT_S"); do
+        if dfu_matches | grep -q . ; then
+            found=yes; break
+        fi
+        sleep 1
+    done
+    [ "$found" = yes ] || die "U-Boot DFU gadget ($DFU_VIDPID, alt 0 \"$DFU_ALT\") did not appear in $DFU_WAIT_S s.
+If you see a U-Boot prompt on the UART instead, use the manual fallback:
+  loadx $FIT_ADDR    (then: sx -k $ART/$FIT < /dev/ttyUSB0 > /dev/ttyUSB0)
+  iminfo $FIT_ADDR && bootm $FIT_ADDR"
+    n="$(dfu_matches | grep -c . || true)"
+    [ "$n" -eq 1 ] || die "ambiguous DFU state: $n matching $DFU_VIDPID alt \"$DFU_ALT\" gadget(s); refusing to proceed"
+
+    say "Downloading $FIT over USB DFU (alt: $DFU_ALT) to RAM $FIT_ADDR"
+    "$DFU_UTIL" -a "$DFU_ALT" -D "$ART/$FIT"
+
+    say "Detaching DFU (U-Boot will now boot the FIT)"
+    "$DFU_UTIL" -a "$DFU_ALT" -e
+}
+
 say "Checking artifacts ($ART)"
 [ -f "$ART/$UBOOT" ] || die "$ART/$UBOOT missing; run scripts/build.sh"
 [ -f "$ART/$FIT" ] || die "$ART/$FIT missing; run scripts/build.sh"
@@ -84,57 +133,42 @@ echo "$FEL_VER" | grep -q 'soc=00001625' \
 echo "$FEL_VER" | grep -qF '(A13)' \
     || die "FEL device is not an A13 (PB626 expected)"
 
-# Start UART capture before U-Boot runs so the SPL output is logged too.
-UART_PID=""
-if [ -n "$UART_DEV" ]; then
-    [ -w "$UART_DEV" ] || die "cannot write $UART_DEV (permissions? sudo needed?)"
-    mkdir -p "$LOG"
-    : > "$LOG/uart.log"
-    stty -F "$UART_DEV" 115200 cs8 -cstopb -parenb -echo raw
-    cat "$UART_DEV" | tee "$LOG/uart.log" &
-    UART_PID=$!
-    trap '[ -n "$UART_PID" ] && kill "$UART_PID" 2>/dev/null' EXIT
-    sleep 1
-    say "UART capture running: $LOG/uart.log"
+if [ -z "$UART_DEV" ]; then
+    do_boot
+    say "Kernel booting; shell prompt appears on the UART (115200 8N1)."
+    echo "When done: power-cycle the PB626; the original PocketBook system boots unchanged."
+    exit 0
 fi
 
-say "Booting U-Boot via FEL"
-"$FEL" uboot "$ART/$UBOOT"
+# --uart: the boot runs as a background job while picocom owns the
+# terminal in the foreground. This is a real bidirectional console: the
+# U-Boot prompt and the initramfs shell can be driven from this terminal,
+# and picocom's --logfile records the whole session (no separate capture
+# mechanism, no duplicated UART handling).
+command -v picocom >/dev/null 2>&1 \
+    || die "picocom not found; install it (e.g. 'apt install picocom') or run without --uart for a headless boot"
+[ -r "$UART_DEV" ] && [ -w "$UART_DEV" ] \
+    || die "cannot read and write $UART_DEV (permissions? sudo needed? see docs/phase0-uat.md)"
+mkdir -p "$LOG"
+rm -f "$LOG/uart.log"
 
-# The expected U-Boot download gadget, and nothing else: VID:PID
-# 1f3a:1010 (CONFIG_USB_GADGET_VENDOR_NUM / CONFIG_USB_GADGET_PRODUCT_NUM
-# defaults for ARCH_SUNXI) with alt setting 0 named exactly "boot" (from
-# dfu_alt_info). The FEL device itself (1f3a:efe8) has no DFU interface
-# and never matches; anything else or ambiguous fails closed.
-dfu_matches() {
-    "$DFU_UTIL" -l 2>/dev/null \
-        | grep -E "Found DFU: \[$DFU_VIDPID\].*alt=0, name=\"$DFU_ALT\""
-}
+# The short delay lets picocom open the port before the first SPL byte.
+( sleep 1; do_boot ) &
+BOOT_PID=$!
+trap 'kill "$BOOT_PID" 2>/dev/null || true' EXIT
 
-say "Waiting for the U-Boot DFU gadget (USB $DFU_VIDPID, alt 0 \"$DFU_ALT\")"
-found=no
-for _ in $(seq 1 "$DFU_WAIT_S"); do
-    if dfu_matches | grep -q . ; then
-        found=yes; break
-    fi
-    sleep 1
-done
-[ "$found" = yes ] || die "U-Boot DFU gadget ($DFU_VIDPID, alt 0 \"$DFU_ALT\") did not appear in $DFU_WAIT_S s.
-If you see a U-Boot prompt on the UART instead, use the manual fallback:
-  loadx $FIT_ADDR    (then: sx -k $ART/$FIT < /dev/ttyUSB0 > /dev/ttyUSB0)
-  iminfo $FIT_ADDR && bootm $FIT_ADDR"
-n="$(dfu_matches | grep -c . || true)"
-[ "$n" -eq 1 ] || die "ambiguous DFU state: $n matching $DFU_VIDPID alt \"$DFU_ALT\" gadget(s); refusing to proceed"
+say "Interactive UART session on $UART_DEV ($LOG/uart.log)"
+say "Exit picocom with Ctrl-A Ctrl-X."
+picocom --baud "$UART_BAUD" --logfile "$LOG/uart.log" "$UART_DEV"
 
-say "Downloading $FIT over USB DFU (alt: $DFU_ALT) to RAM $FIT_ADDR"
-"$DFU_UTIL" -a "$DFU_ALT" -D "$ART/$FIT"
-
-say "Detaching DFU (U-Boot will now boot the FIT)"
-"$DFU_UTIL" -a "$DFU_ALT" -e
-
-say "Kernel booting; shell prompt appears on the UART (115200 8N1)."
-if [ -n "$UART_PID" ]; then
-    echo "Log: $LOG/uart.log (Ctrl-C stops the capture)"
-    wait "$UART_PID" 2>/dev/null || true
+say "UART session ended; waiting for the boot job to finish"
+set +e
+wait "$BOOT_PID"
+BOOT_RC=$?
+set -e
+if [ "$BOOT_RC" -ne 0 ]; then
+    printf 'ERROR: boot job failed (exit %d); see messages above and %s/uart.log\r\n' \
+        "$BOOT_RC" "$LOG" >&2
+    exit "$BOOT_RC"
 fi
 echo "When done: power-cycle the PB626; the original PocketBook system boots unchanged."

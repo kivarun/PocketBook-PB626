@@ -34,7 +34,10 @@ docker run --rm -v "$PWD":/workspace pb626-build-env \
     /workspace/scripts/build.sh
 ```
 
-Boot (on the host, with the device in FEL mode; optional UART capture):
+Boot (on the host, with the device in FEL mode; `--uart` opens an
+interactive `picocom` console on the given device and logs the session
+to `build/log/uart.log`; wiring per `docs/phase0-uat.md` section 0 —
+never connect the board's VCC pad to the adapter):
 
 ```sh
 ./scripts/fel-boot.sh --uart /dev/ttyUSB0

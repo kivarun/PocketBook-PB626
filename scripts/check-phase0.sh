@@ -150,3 +150,62 @@ if grep -q 'grep -q "Found DFU"' "$FEL_BOOT"; then
 fi
 
 pass 'FEL identity (A13, soc 0x1625) and DFU identity (1f3a:1010, alt 0 "boot") strict'
+
+# --------------------------------------------------------------------------
+# Gate 3: electrically safe UART wiring docs + truthful UART semantics
+# --------------------------------------------------------------------------
+echo '==> Gate 3: safe and truthful UART documentation/script'
+
+UAT="$REPO_ROOT/docs/phase0-uat.md"
+[ -f "$UAT" ] || fail "missing $UAT"
+
+# The canonical safe wiring must be documented verbatim, including VCC
+# explicitly NOT connected, and the passive-capture two-wire note.
+for needle in \
+    'PB626 GND -> adapter GND' \
+    'PB626 TX  -> adapter RX' \
+    'PB626 RX  -> adapter TX' \
+    'PB626 VCC -> NOT CONNECTED' \
+    'two wires are needed and sufficient' \
+    'WARNING — do not connect VCC'; do
+    grep -qF -- "$needle" "$UAT" \
+        || fail "docs/phase0-uat.md does not document the safe wiring ('$needle')"
+done
+
+# No line may instruct connecting the adapter's VCC/3.3 V to the board.
+# Lines that explicitly say VCC is NOT connected are safety statements,
+# not instructions.
+while IFS= read -r line; do
+    if grep -Eqi '(VCC|3\.3 ?V)' <<<"$line" && grep -qi 'adapter' <<<"$line" \
+        && ! grep -Eqi 'NOT CONNECTED|unconnected|do not|never|not be' <<<"$line"; then
+        fail "docs/phase0-uat.md appears to instruct connecting VCC/3.3 V: $line"
+    fi
+done < <(grep -i 'adapter' "$UAT")
+
+# The old unsafe pad-list must not reappear.
+if grep -q 'PG3=TX, PG4=RX, GND, 3.3 V' "$UAT"; then
+    fail 'docs/phase0-uat.md still carries the old unsafe wiring list'
+fi
+
+# --uart must be genuinely interactive (picocom foreground + logfile),
+# never a read-only cat/tee capture described as interactive.
+if grep -q 'cat "$UART_DEV"' "$FEL_BOOT"; then
+    fail 'fel-boot.sh captures the UART with a read-only cat/tee pipe instead of an interactive session'
+fi
+if grep -q 'read-only observation' "$FEL_BOOT"; then
+    fail 'fel-boot.sh still claims a read-only capture is interactive'
+fi
+grep -q 'picocom --baud' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not use picocom for the interactive --uart session'
+grep -qF -- '--logfile "$LOG/uart.log"' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not log the interactive session via picocom --logfile'
+grep -qF 'Ctrl-A Ctrl-X' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not document the picocom exit key'
+grep -q 'command -v picocom' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not fail closed when picocom is missing'
+
+# The UAT must describe the session as interactive and must not claim a
+# capture-only flow is interactive.
+grep -q 'interactive' "$UAT" || fail 'docs/phase0-uat.md does not describe the interactive session'
+
+pass 'UART wiring electrically safe; --uart session is truly interactive and logged'
