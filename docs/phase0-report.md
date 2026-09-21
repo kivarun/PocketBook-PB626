@@ -86,9 +86,11 @@ Canonical (one script, UART capture included):
 Primitive steps it performs:
 
 ```sh
-./build/host-tools/sunxi-fel ver                          # must report (A13)
+./build/host-tools/sunxi-fel ver                          # must report soc=00001625 (A13)
 ./build/host-tools/sunxi-fel uboot build/artifacts/u-boot-sunxi-with-spl.bin
-# wait until: ./build/host-tools/dfu-util -l shows "Found DFU" (1f3a:1010)
+# wait until: ./build/host-tools/dfu-util -l shows exactly one
+#   Found DFU: [1f3a:1010] ... alt=0, name="boot"
+# (the FEL device itself is 1f3a:efe8 and has no DFU interface)
 ./build/host-tools/dfu-util -a boot -D build/artifacts/boot.itb   # FIT -> RAM 0x42000000
 ./build/host-tools/dfu-util -a boot -e                            # detach -> U-Boot runs bootm
 ```

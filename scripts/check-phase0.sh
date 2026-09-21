@@ -126,3 +126,27 @@ if grep -Eq '0x[0-9a-fA-F]{8}' "$FEL_BOOT"; then
 fi
 
 pass 'RAM map canonical and non-overlapping (FIT/KERNEL/DTB/INITRAMFS, U-Boot reserve)'
+
+# --------------------------------------------------------------------------
+# Gate 2: strict FEL and DFU device identity checks
+# --------------------------------------------------------------------------
+echo '==> Gate 2: strict FEL and DFU device identity checks'
+
+FEL_BOOT="$REPO_ROOT/scripts/fel-boot.sh"
+[ -f "$FEL_BOOT" ] || fail "missing $FEL_BOOT"
+
+grep -q 'soc=00001625' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not verify the FEL SoC id (0x1625)'
+grep -qF '(A13)' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not verify the FEL SoC name (A13)'
+grep -q 'DFU_VIDPID="1f3a:1010"' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not pin the expected DFU VID:PID (1f3a:1010)'
+grep -qF 'alt=0, name=\"$DFU_ALT\"' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not match the expected DFU alt setting (0: "boot")'
+grep -q 'ambiguous DFU state' "$FEL_BOOT" \
+    || fail 'fel-boot.sh does not fail closed on ambiguous DFU state'
+if grep -q 'grep -q "Found DFU"' "$FEL_BOOT"; then
+    fail 'fel-boot.sh uses broad "Found DFU" matching instead of the expected device identity'
+fi
+
+pass 'FEL identity (A13, soc 0x1625) and DFU identity (1f3a:1010, alt 0 "boot") strict'

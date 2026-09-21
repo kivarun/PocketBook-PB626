@@ -2,7 +2,7 @@
 # Canonical FEL-only boot for the PocketBook PB626 / Touch Lux 3.
 #
 # Runs on the host (needs USB access to the device in FEL mode):
-#   1. verifies the device in FEL mode is an Allwinner A13
+#   1. verifies the device in FEL mode is an Allwinner A13 (SoC id 0x1625)
 #   2. boots U-Boot via sunxi-fel (console on UART1, PG3/PG4, 115200 8N1)
 #   3. U-Boot automatically waits in DFU mode (bootcmd: "dfu 0 ram 0")
 #   4. pushes the FIT image (kernel+DTB+initramfs) to RAM via USB DFU
@@ -38,9 +38,12 @@ DFU_ALT="boot"
 # scripts/check-phase0.sh on every build).
 # shellcheck source=../config/ram-map.sh
 . "$REPO_ROOT/config/ram-map.sh"
-# U-Boot's sunxi download gadget enumerates with the same VID:PID as the
-# FEL device (0x1f3a:0x1010), so detection goes through dfu-util's own
-# DFU probe (the FEL device has no DFU interface and is ignored by it).
+# U-Boot's sunxi download gadget enumerates as 1f3a:1010 (the
+# CONFIG_USB_GADGET_VENDOR_NUM / CONFIG_USB_GADGET_PRODUCT_NUM defaults
+# for ARCH_SUNXI); the FEL device itself is 1f3a:efe8 and has no DFU
+# interface, so detection goes through dfu-util's own DFU probe (see
+# dfu_matches below: VID:PID plus the exact alt setting/name).
+DFU_VIDPID="1f3a:1010"
 DFU_WAIT_S=15
 
 say() { printf '\n==> %s\n' "$*"; }
@@ -76,7 +79,9 @@ say "Checking artifacts ($ART)"
 say "Verifying FEL device (plug the PB626 in FEL mode: hold the Menu button)"
 FEL_VER="$("$FEL" ver)" || die "no FEL device found (usb mode? permissions? see docs/phase0-uat.md)"
 echo "$FEL_VER"
-echo "$FEL_VER" | grep -q 'A13' \
+echo "$FEL_VER" | grep -q 'soc=00001625' \
+    || die "FEL device reports the wrong SoC id (expected 0x1625 = A13); refusing to continue"
+echo "$FEL_VER" | grep -qF '(A13)' \
     || die "FEL device is not an A13 (PB626 expected)"
 
 # Start UART capture before U-Boot runs so the SPL output is logged too.
@@ -96,18 +101,30 @@ fi
 say "Booting U-Boot via FEL"
 "$FEL" uboot "$ART/$UBOOT"
 
-say "Waiting for U-Boot DFU gadget"
-found=""
+# The expected U-Boot download gadget, and nothing else: VID:PID
+# 1f3a:1010 (CONFIG_USB_GADGET_VENDOR_NUM / CONFIG_USB_GADGET_PRODUCT_NUM
+# defaults for ARCH_SUNXI) with alt setting 0 named exactly "boot" (from
+# dfu_alt_info). The FEL device itself (1f3a:efe8) has no DFU interface
+# and never matches; anything else or ambiguous fails closed.
+dfu_matches() {
+    "$DFU_UTIL" -l 2>/dev/null \
+        | grep -E "Found DFU: \[$DFU_VIDPID\].*alt=0, name=\"$DFU_ALT\""
+}
+
+say "Waiting for the U-Boot DFU gadget (USB $DFU_VIDPID, alt 0 \"$DFU_ALT\")"
+found=no
 for _ in $(seq 1 "$DFU_WAIT_S"); do
-    if "$DFU_UTIL" -l 2>/dev/null | grep -q "Found DFU"; then
+    if dfu_matches | grep -q . ; then
         found=yes; break
     fi
     sleep 1
 done
-    [ -n "$found" ] || die "U-Boot DFU gadget did not appear in $DFU_WAIT_S s.
+[ "$found" = yes ] || die "U-Boot DFU gadget ($DFU_VIDPID, alt 0 \"$DFU_ALT\") did not appear in $DFU_WAIT_S s.
 If you see a U-Boot prompt on the UART instead, use the manual fallback:
   loadx $FIT_ADDR    (then: sx -k $ART/$FIT < /dev/ttyUSB0 > /dev/ttyUSB0)
   iminfo $FIT_ADDR && bootm $FIT_ADDR"
+n="$(dfu_matches | grep -c . || true)"
+[ "$n" -eq 1 ] || die "ambiguous DFU state: $n matching $DFU_VIDPID alt \"$DFU_ALT\" gadget(s); refusing to proceed"
 
 say "Downloading $FIT over USB DFU (alt: $DFU_ALT) to RAM $FIT_ADDR"
 "$DFU_UTIL" -a "$DFU_ALT" -D "$ART/$FIT"
