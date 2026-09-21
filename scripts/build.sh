@@ -50,6 +50,12 @@ export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-946684800}"
 # Kernel: keep the embedded build user/host stable across hosts/containers.
 export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-builder}"
 export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-pb626-build-env}"
+# Kernel: pin the build number and timestamp embedded in UTS_VERSION.
+# Without these, init/Makefile falls back to scripts/build-version (an
+# incrementing counter in the build tree) and the wall clock, so every
+# full rebuild would produce a different zImage.
+export KBUILD_BUILD_VERSION="${KBUILD_BUILD_VERSION:-1}"
+export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-$(LC_ALL=C date -u -d "@$SOURCE_DATE_EPOCH" '+%a %b %e %H:%M:%S UTC %Y')}"
 
 say() { printf '\n==> %s\n' "$*"; }
 
