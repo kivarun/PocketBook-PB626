@@ -33,7 +33,7 @@ in the delivery note accompanying this report.
 | Component | Version / commit | Source | Integrity |
 |---|---|---|---|
 | U-Boot | `v2026.07` = `ece349ade2973e220f524ce59e59711cc919263f` | github.com/u-boot/u-boot (tag) | tag-checked |
-| Linux | `6.12.110` (latest 6.12 LTS) | cdn.kernel.org tarball | kernel.org `sha256sums.asc` verified by `scripts/build.sh` |
+| Linux | `6.12.110` (latest 6.12 LTS) | cdn.kernel.org tarball | pinned sha256 `8cee19e1…c4c`, verified on every build (cross-checked against cdn.kernel.org `sha256sums.asc`) |
 | sunxi-tools | `d7bbd172a5da601a08f94479de308c6fb714a19a` (2026-06-08; no newer tag than v1.4.2) | github.com/linux-sunxi/sunxi-tools | commit-checked by `scripts/build.sh` |
 | BusyBox | `1.36.1` | busybox.net tarball | sha256 `b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314` |
 | dfu-util | `0.11` | sourceforge tarball | sha256 `b4b53ba21a82ef7e3d4c47df2952adf5fa494f499b6b0b57c58c5d04ae8ff19e` |
@@ -151,7 +151,11 @@ procedure. Build-side verification performed here (see Local verification).
 ### Local verification (no hardware attached)
 
 1. `scripts/build.sh` runs clean end-to-end inside `pb626-build-env`;
-   source pins verified on every run.
+   source pins verified on every run: u-boot/sunxi-tools at the exact
+   pinned commit with a clean worktree (tracked files unmodified, no
+   unexpected untracked files), and linux/busybox/dfu-util by pinned
+   tarball sha256 (the linux build tree is re-extracted from the
+   verified tarball and stamped, never taken from elsewhere).
 2. Two consecutive full rebuilds produce byte-identical artifacts.
 3. Artifact sanity:
    * SPL eGON.BT0 header valid, SPL = 24 KiB (fits A13 SRAM-A1);
