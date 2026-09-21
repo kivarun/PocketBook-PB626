@@ -209,3 +209,22 @@ grep -q 'command -v picocom' "$FEL_BOOT" \
 grep -q 'interactive' "$UAT" || fail 'docs/phase0-uat.md does not describe the interactive session'
 
 pass 'UART wiring electrically safe; --uart session is truly interactive and logged'
+
+# --------------------------------------------------------------------------
+# Gate 4: truthful repository status (hardware UAT pending)
+# --------------------------------------------------------------------------
+echo '==> Gate 4: truthful repository status (hardware UAT pending)'
+
+README="$REPO_ROOT/README.md"
+[ -f "$README" ] || fail "missing $README"
+grep -q 'Build and static verification: complete' "$README" \
+    || fail 'README.md does not separate build/static verification from device status'
+grep -q 'Real-device UAT: pending' "$README" \
+    || fail 'README.md does not state that real-device UAT is pending'
+if grep -Eqi 'can be booted|boots into a mainline|successfully booted' "$README"; then
+    fail 'README.md claims a successful hardware boot although real-device UAT is pending'
+fi
+grep -Eq 'UAT: pending|UAT pending' "$REPO_ROOT/docs/phase0-report.md" \
+    || fail 'docs/phase0-report.md does not state that the device-side UAT is pending'
+
+pass 'status truthful: build/static verification complete, real-device UAT pending'

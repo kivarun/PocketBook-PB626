@@ -11,10 +11,20 @@ Target hardware:
 
 ## Current status
 
+- **Build and static verification: complete.** The toolchain image, the
+  canonical build path and the Phase 0 boot bundle are reproducible and
+  pass the static gates (`scripts/check-phase0.sh`,
+  `scripts/test-build-env.sh`).
+- **Real-device UAT: pending.** No hardware acceptance run has been
+  performed yet; nothing here claims the PB626 boots on real hardware
+  until the deterministic procedure in `docs/phase0-uat.md` has passed
+  on the device.
+
 At this stage the repository contains a reproducible build environment
-plus the **Phase 0 FEL-only boot bundle**: the PB626 can be booted over
-USB FEL into a mainline Linux (6.12 LTS) with an interactive UART shell —
-no storage of the device is touched.
+plus the **Phase 0 FEL-only boot bundle**: it is designed to bring the
+PB626 up over USB FEL into a mainline Linux (6.12 LTS) with an
+interactive UART shell — no storage of the device is touched — and the
+pending UAT is the step that establishes this on the real device.
 
 ## Phase 0 — FEL-only boot
 
@@ -48,7 +58,9 @@ Artifacts land in `build/artifacts/` with `SHA256SUMS`; host tools
 `build/host-tools/`. See `docs/phase0-investigation.md` (research record,
 pinned versions) and `docs/phase0-uat.md` (acceptance test). No patches to
 upstream sources are required (see `patches/README.md`); the board specifics
-live in `config/`.
+live in `config/`. Static gates (`scripts/check-phase0.sh`: canonical
+non-overlapping RAM map, strict FEL/DFU device identity, electrically safe
+UART documentation, truthful status) run before every build and in CI.
 
 ## Build environment
 

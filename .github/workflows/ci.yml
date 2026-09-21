@@ -20,3 +20,6 @@ jobs:
 
       - name: Run build environment smoke tests
         run: docker run --rm -v "$GITHUB_WORKSPACE":/workspace pb626-build-env /workspace/scripts/test-build-env.sh
+
+      - name: Run Phase 0 static gates
+        run: docker run --rm -v "$GITHUB_WORKSPACE":/workspace pb626-build-env /workspace/scripts/check-phase0.sh

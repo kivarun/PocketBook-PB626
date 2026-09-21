@@ -169,9 +169,12 @@ procedure. Build-side verification performed here (see Local verification).
      (CONS_INDEX=2, ENV_IS_NOWHERE, DFU_RAM, MUSB_GADGET);
    * kernel `.config` verified (8250 console, MMC, AXP209 MFD/battery/
      charger/power/ADC, gpio-keys, LRADC, initrd);
-   * static Phase 0 gates (`scripts/check-phase0.sh`) pass: the RAM
-     map (`config/ram-map.sh` vs `config/fit.its` and the default env)
-     is canonical and non-overlapping.
+   * static Phase 0 gates (`scripts/check-phase0.sh`) pass: canonical
+     non-overlapping RAM map (`config/ram-map.sh` vs `config/fit.its`
+     and the default env), strict FEL (A13, soc 0x1625) and DFU
+     (1f3a:1010, alt 0 "boot") identity checks, electrically safe UART
+     wiring documentation with a truly interactive `--uart` session,
+     and truthful repository status (hardware UAT pending).
 4. Initramfs smoke test: extracted and executed under `qemu-arm`
    (reports `armv7l`); `/init`, static busybox and all needed applets
    (sh, mount, dmesg, cat, ls, setsid, cttyhack, reboot, poweroff)
