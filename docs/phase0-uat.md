@@ -1,9 +1,35 @@
 # Phase 0 UAT — FEL-only boot to UART shell
 
 Deterministic acceptance test for the PB626. Requires: PB626 in reach, a
-USB A-to-microB cable, the UART1 pads wired (PG3=TX, PG4=RX, GND, 3.3 V,
-115200 8N1) to a USB-UART adapter, and a Linux host with USB access.
-**The external microSD must not be needed** (leave it out or empty).
+USB A-to-microB cable, a USB-UART adapter wired to the PB626 UART pads
+exactly as described in section 0 below, and a Linux host with USB
+access. **The external microSD must not be needed** (leave it out or
+empty).
+
+## 0. UART wiring — read before connecting anything
+
+> **WARNING — do not connect VCC.** Never connect the board's VCC (3.3 V)
+> pad to the USB-UART adapter. The adapter is powered by the host over
+> USB and the PB626 is powered by its own USB cable; cross-feeding 3.3 V
+> into either side is unnecessary for the FEL boot and can damage the
+> adapter, the PB626, or both. Leave VCC unconnected in every setup in
+> this document.
+
+Wiring (cross TX/RX; VCC stays unconnected):
+
+    PB626 GND -> adapter GND
+    PB626 TX  -> adapter RX
+    PB626 RX  -> adapter TX
+    PB626 VCC -> NOT CONNECTED
+
+Board-side, TX is UART1 TX on SoC pad PG3 and RX is UART1 RX on PG4 (the
+pads are labelled on the board); settings are 115200 8N1, 3.3 V logic.
+
+For the first passive capture (running the boot and only watching the
+output), two wires are needed and sufficient:
+
+    PB626 GND -> adapter GND
+    PB626 TX  -> adapter RX
 
 ## 1. Build once
 

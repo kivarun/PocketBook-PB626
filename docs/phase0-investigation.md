@@ -81,6 +81,9 @@ UART1 (PG3 = TX, PG4 = RX), 115200 8N1, 3.3 V logic. The wiki describes
 "nice big pads on the side of the board", clearly marked. `chosen/stdout-path`
 in the DT is `serial0:115200n8`; the kernel sees it as `ttyS0` (alias
 `serial0 = &uart1`). U-Boot uses the same port (CONFIG_CONS_INDEX=2).
+USB-UART adapter wiring for the UAT: `docs/phase0-uat.md` section 0 —
+GND and TX/RX crossed, **VCC left unconnected** (never feed the board's
+3.3 V pad into the adapter).
 
 ## 7. How e-ink support is exposed by the existing Linux implementation
 

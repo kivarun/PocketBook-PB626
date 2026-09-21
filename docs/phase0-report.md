@@ -98,8 +98,11 @@ Primitive steps it performs:
 Notes:
 * `dfu-util -e -R` must **not** be used: with U-Boot, a bus reset after the
   detach makes U-Boot reset the board and the downloaded image is lost.
-* UART: UART1, PG3=TX / PG4=RX, 115200 8N1, 3.3 V. `console=ttyS0,115200n8`
-  (kernel `ttyS0` = uart1 via the DT alias).
+* UART: UART1, PG3=TX / PG4=RX, 115200 8N1, 3.3 V logic. `console=ttyS0,115200n8`
+  (kernel `ttyS0` = uart1 via the DT alias). Adapter wiring: PB626 GND→GND,
+  TX→adapter RX, RX→adapter TX, and **VCC NOT CONNECTED** — see
+  `docs/phase0-uat.md` section 0 (never connect the board's 3.3 V pad to
+  the adapter).
 
 ### Canonical RAM map (`config/ram-map.sh`, verified by `scripts/check-phase0.sh`)
 
