@@ -44,7 +44,9 @@ AWUSBFEX soc=00001625(A13) 00000001 ver=0401 00 00 scratchpad=00000010 00000000 
 
 The script: checks checksums, boots U-Boot over FEL (SPL output visible on
 UART), waits for the U-Boot DFU gadget, pushes `boot.itb` to RAM at
-0x42000000, detaches DFU — U-Boot then boots the FIT and Linux starts.
+0x42000000, detaches DFU — U-Boot then boots the FIT and Linux starts
+(the kernel is copied out of the FIT blob to 0x44000000; the canonical
+layout lives in `config/ram-map.sh`).
 
 ## 5. Capture UART output
 

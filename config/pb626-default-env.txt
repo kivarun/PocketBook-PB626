@@ -5,6 +5,8 @@
 # bootcmd: wait for the host to push a FIT image to RAM over USB DFU
 # (alt-setting "boot" writes at 0x42000000), then boot it.
 # After the host detaches, dfu returns and bootm runs.
+# These addresses are the canonical ones from config/ram-map.sh;
+# scripts/check-phase0.sh verifies them against the map on every build.
 
 bootdelay=0
 bootcmd=dfu 0 ram 0; bootm 0x42000000

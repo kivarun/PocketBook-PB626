@@ -99,6 +99,25 @@ Notes:
 * UART: UART1, PG3=TX / PG4=RX, 115200 8N1, 3.3 V. `console=ttyS0,115200n8`
   (kernel `ttyS0` = uart1 via the DT alias).
 
+### Canonical RAM map (`config/ram-map.sh`, verified by `scripts/check-phase0.sh`)
+
+| Region | Range | Size |
+|---|---|---|
+| DRAM (A13, auto-detected) | `0x40000000`–`0x50000000` | 256 MiB |
+| Decompressed kernel (AUTO_ZRELADDR target) | `0x40008000` | <16 MiB |
+| FIT download buffer (DFU alt `boot`; `bootm` input) | `0x42000000`–`0x44000000` | 32 MiB declared, ~6.7 MiB used |
+| zImage load/entry | `0x44000000`–`0x44800000` | 8 MiB declared |
+| DTB load | `0x44800000`–`0x44900000` | 1 MiB declared |
+| Initramfs load | `0x45000000`–`0x46000000` | 16 MiB declared |
+| U-Boot runtime reserve (relocated U-Boot, heap/stacks, bootm-relocated fdt/ramdisk) | `0x4E000000`–`0x50000000` | 32 MiB |
+
+The zImage loads at `0x44000000` — not `0x42000000`, which is the FIT
+blob the kernel is copied out of — so the `bootm` source/destination
+never overlap. Kernel, DTB and initramfs destinations are pairwise
+disjoint, everything authored stays below the U-Boot runtime
+reservation, and `scripts/check-phase0.sh` verifies the whole layout
+against `config/ram-map.sh` and fails the build otherwise.
+
 ## 9. UART boot log
 
 Pending the device-side UAT run (`build/log/uart.log` is captured by
@@ -137,7 +156,10 @@ procedure. Build-side verification performed here (see Local verification).
      `dfu_alt_info=boot ram 42000000 2000000`) and the key configs
      (CONS_INDEX=2, ENV_IS_NOWHERE, DFU_RAM, MUSB_GADGET);
    * kernel `.config` verified (8250 console, MMC, AXP209 MFD/battery/
-     charger/power/ADC, gpio-keys, LRADC, initrd).
+     charger/power/ADC, gpio-keys, LRADC, initrd);
+   * static Phase 0 gates (`scripts/check-phase0.sh`) pass: the RAM
+     map (`config/ram-map.sh` vs `config/fit.its` and the default env)
+     is canonical and non-overlapping.
 4. Initramfs smoke test: extracted and executed under `qemu-arm`
    (reports `armv7l`); `/init`, static busybox and all needed applets
    (sh, mount, dmesg, cat, ls, setsid, cttyhack, reboot, poweroff)

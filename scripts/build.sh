@@ -187,6 +187,7 @@ record_metadata() {
 main() {
     mkdir -p "$OUT" "$LOGDIR" "$HOST_TOOLS"
     verify_pins
+    "$REPO_ROOT/scripts/check-phase0.sh"
     build_uboot
     build_linux
     build_busybox

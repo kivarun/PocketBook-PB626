@@ -3,6 +3,11 @@
 // Single canonical Phase 0 boot artifact for the PB626.
 // Built with: mkimage -f config/fit.its build/artifacts/boot.itb
 // (/incbin/ paths are relative to the .its file's directory).
+//
+// Load addresses are the canonical ones from config/ram-map.sh; they
+// must not overlap the FIT download buffer at 0x42000000 the kernel is
+// copied out of, nor each other. scripts/check-phase0.sh verifies this
+// against config/ram-map.sh on every build.
 
 / {
 	description = "PocketBook PB626 Phase 0 FEL boot bundle";
@@ -16,8 +21,8 @@
 			arch = "arm";
 			os = "linux";
 			compression = "none";
-			load = <0x42000000>;
-			entry = <0x42000000>;
+			load = <0x44000000>;
+			entry = <0x44000000>;
 			hash-1 {
 				algo = "sha256";
 			};

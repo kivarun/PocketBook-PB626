@@ -33,6 +33,11 @@ UART_DEV=""
 UBOOT="${UBOOT:-u-boot-sunxi-with-spl.bin}"
 FIT="${FIT:-boot.itb}"
 DFU_ALT="boot"
+# Canonical RAM addresses (single source of truth: config/ram-map.sh;
+# verified against config/fit.its and the default env by
+# scripts/check-phase0.sh on every build).
+# shellcheck source=../config/ram-map.sh
+. "$REPO_ROOT/config/ram-map.sh"
 # U-Boot's sunxi download gadget enumerates with the same VID:PID as the
 # FEL device (0x1f3a:0x1010), so detection goes through dfu-util's own
 # DFU probe (the FEL device has no DFU interface and is ignored by it).
@@ -99,12 +104,12 @@ for _ in $(seq 1 "$DFU_WAIT_S"); do
     fi
     sleep 1
 done
-[ -n "$found" ] || die "U-Boot DFU gadget did not appear in $DFU_WAIT_S s.
+    [ -n "$found" ] || die "U-Boot DFU gadget did not appear in $DFU_WAIT_S s.
 If you see a U-Boot prompt on the UART instead, use the manual fallback:
-  loadx 0x42000000    (then: sx -k $ART/$FIT < /dev/ttyUSB0 > /dev/ttyUSB0)
-  iminfo 0x42000000 && bootm 0x42000000"
+  loadx $FIT_ADDR    (then: sx -k $ART/$FIT < /dev/ttyUSB0 > /dev/ttyUSB0)
+  iminfo $FIT_ADDR && bootm $FIT_ADDR"
 
-say "Downloading $FIT over USB DFU (alt: $DFU_ALT) to RAM 0x42000000"
+say "Downloading $FIT over USB DFU (alt: $DFU_ALT) to RAM $FIT_ADDR"
 "$DFU_UTIL" -a "$DFU_ALT" -D "$ART/$FIT"
 
 say "Detaching DFU (U-Boot will now boot the FIT)"
