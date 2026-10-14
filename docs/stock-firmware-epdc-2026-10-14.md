@@ -85,16 +85,73 @@ Temperature `31` is an instantaneous sample. A contemporaneous
 driver, but does not identify the physical sensor or justify generalizing
 the reading to other operating conditions.
 
-## Available timings subdirectory (names only)
+## Display interface timing readout (sysfs, read-only)
+
+All 15 files under `/sys/class/graphics/fb0/device/timings/` were
+successfully read on the running PB626. These are the exact values returned;
+none were modified.
+
+| Attribute | Stock value |
+| --- | ---: |
+| `fbl` | 4 |
+| `fdl` | 758 |
+| `fel` | 8 |
+| `framerate` | 85 |
+| `fsl` | 2 |
+| `gdck_high` | 200 |
+| `gdck_sta` | 4 |
+| `gdoe_sta` | 0 |
+| `gdsp_offset` | 80 |
+| `lbl` | 6 |
+| `ldl` | 256 |
+| `lel` | 38 |
+| `lsl` | 6 |
+| `pixclk` | 20079720 |
+| `sdoe_mode` | `line` |
+| `sdoe_sta` | -1 |
+
+### Exact timing closure — confirmed arithmetic
+
+The reported clock is **exactly equal** to the aggregate line timing,
+aggregate frame timing and nominal frame rate:
 
 ```text
-fbl fdl fel framerate fsl gdck_high gdck_sta gdoe_sta gdsp_offset
-lbl ldl lel lsl pixclk sdoe_mode sdoe_sta
+line_total  = lsl + lbl + ldl + lel
+            =   6 +   6 + 256 +  38 = 306 timing ticks/line
+
+frame_total = fsl + fbl + fdl + fel
+            =   2 +   4 + 758 +   8 = 772 lines/frame
+
+pixclk      = line_total * frame_total * framerate
+            = 306 * 772 * 85
+            = 20,079,720 Hz
+            = 20.07972 MHz   (exactly matches sysfs)
 ```
 
-`framerate` was shown as read-only; the other listed timing entries
-were readable/writable. Their **contents have not yet been collected**
-and should not be guessed.
+Thus the timing values form a **self-consistent configuration** for
+85 frames/s; this establishes arithmetic closure but does not independently
+measure the physical oscillator frequency or the actual external signal
+transitions. The reciprocal nominal frame period is about 11.765 ms.
+
+The data strongly suggest that `ldl=256` is a transfer-unit count rather
+than 256 individual horizontal image pixels, since the logical image width
+is 1024 and `1024/256=4`. Four pixels per transfer tick is a hypothesis,
+**not yet confirmed by bus-level instrumentation or driver source**.
+
+Similarly `fdl=758` matches the active 758 framebuffer rows, while
+`fdl+fsl=758+2=760` matches the `waveform_info` declaration
+`Applied params: 1024x760`. The equality is recorded as a clue; the
+precise meaning of those two additional lines remains unknown.
+
+`gdck_high=200`, `gdck_sta=4`, `gdoe_sta=0`,
+`gdsp_offset=80`, `sdoe_mode=line` and `sdoe_sta=-1`
+must be kept verbatim until source review establishes their units,
+sign conventions and signal-level interpretation. Do not treat
+`gdck_high=200` as a voltage or a duration by guesswork.
+
+`framerate` appeared read-only, while the other timing attributes were
+readable/writable according to the original directory listing. This
+investigation used **read operations only**.
 
 ## Safety and future research
 
@@ -102,8 +159,8 @@ and should not be guessed.
   `powerup_sequence`, `powerdown_sequence`, `vcom`, `update` or
   `fill` while merely documenting hardware. Some endpoints are
   world-writable or may program persistent voltage settings.
-- To extend this dataset, read `timings/*` using ordinary `cat` only;
-  preserve names, values, and output verbatim.
+- Full `timings/*` contents are now captured. Do not write timing values
+  to probe the hardware; analyze driver source or use noninvasive measurement.
 - Compare the above sequence grammar, 14-column waveform table and
   1024x760 geometry with audited stock/out-of-tree EPDC source, rather
   than mapping unverified numerical meanings into mainline drivers.
