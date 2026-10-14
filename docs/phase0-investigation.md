@@ -105,3 +105,13 @@ for WiFi in Phase 1+.)
 Per the device wiki: **the Menu button on the right side triggers FEL mode**
 (hold Menu while powering the device on / connecting USB). Verify with
 `sunxi-fel ver` — the A13 reports SoC id 0x1625 / "A13".
+
+## 9. Real-device stock firmware evidence (2026-10-14)
+
+The restored vendor Linux 3.0.8 firmware was investigated through UART, read-only sysfs, input enumeration, kernel `dmesg`, and a checksum-verified decoding of `/boot/script.bin`:
+
+* [Stock UART, boot, partitions and power-management observations](stock-firmware-uart-2026-10-14.md)
+* [Recovered FEX and decoded pin/peripheral settings](stock-firmware-fex-2026-10-14.md) ([full text](../hardware/stock-script.fex))
+* [Live device bindings, EPDC/PMIC, dmesg, sysfs hazards](stock-firmware-runtime-hardware-2026-10-14.md)
+
+Observed stock kernel: Cypress `cyttsp4_i2c_adapter` on I2C2/0x24 (input `cyttsp4_mt`) despite FEX `ctp_name="ft5x_ts"`; exact Cypress IC model remains unverified. Stock Software EPDC is an Obreey `sw-epdc` stack for ED060XD4, loading `/boot/default.wbf`, selecting a TPS65185 backend and reporting `pmic vcom: -2960` (units not explicit in log). The stock FEX does not reliably report physical DRAM capacity: kernel/Boot0 see 256 MiB while FEX says 512. These observations do not assert that stock vendor drivers or the e-ink panel operate under unmodified mainline Linux, and they do not satisfy the separate Phase 0 FEL/DFU hardware acceptance test.
