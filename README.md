@@ -1,6 +1,6 @@
 # PocketBook PB626
 
-Stock-firmware hardware field notes (2026-10-14): [UART and boot](docs/stock-firmware-uart-2026-10-14.md), [extracted FEX](docs/stock-firmware-fex-2026-10-14.md), and [runtime I2C, input and EPDC evidence](docs/stock-firmware-runtime-hardware-2026-10-14.md). These document the restored vendor firmware only; **Phase 0 hardware UAT remains pending**.
+Stock-firmware hardware field notes (2026-10-14): [UART and boot](docs/stock-firmware-uart-2026-10-14.md), [extracted FEX](docs/stock-firmware-fex-2026-10-14.md), and [runtime I2C, input and EPDC evidence](docs/stock-firmware-runtime-hardware-2026-10-14.md), and [EPDC waveform and power-sequence readout](docs/stock-firmware-epdc-2026-10-14.md). These document the restored vendor firmware only; **Phase 0 hardware UAT remains pending**.
 
 This project explores and builds a modern Linux-based software stack for the
 PocketBook Touch Lux 3 (PB626).

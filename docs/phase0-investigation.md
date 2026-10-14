@@ -113,5 +113,6 @@ The restored vendor Linux 3.0.8 firmware was investigated through UART, read-onl
 * [Stock UART, boot, partitions and power-management observations](stock-firmware-uart-2026-10-14.md)
 * [Recovered FEX and decoded pin/peripheral settings](stock-firmware-fex-2026-10-14.md) ([full text](../hardware/stock-script.fex))
 * [Live device bindings, EPDC/PMIC, dmesg, sysfs hazards](stock-firmware-runtime-hardware-2026-10-14.md)
+* [EPDC read-only waveform metadata and power sequences](stock-firmware-epdc-2026-10-14.md)
 
 Observed stock kernel: Cypress `cyttsp4_i2c_adapter` on I2C2/0x24 (input `cyttsp4_mt`) despite FEX `ctp_name="ft5x_ts"`; exact Cypress IC model remains unverified. Stock Software EPDC is an Obreey `sw-epdc` stack for ED060XD4, loading `/boot/default.wbf`, selecting a TPS65185 backend and reporting `pmic vcom: -2960` (units not explicit in log). The stock FEX does not reliably report physical DRAM capacity: kernel/Boot0 see 256 MiB while FEX says 512. These observations do not assert that stock vendor drivers or the e-ink panel operate under unmodified mainline Linux, and they do not satisfy the separate Phase 0 FEL/DFU hardware acceptance test.

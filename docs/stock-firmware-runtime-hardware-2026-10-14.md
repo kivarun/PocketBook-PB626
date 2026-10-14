@@ -119,8 +119,9 @@ Representative exact modes from the owner's listing:
 --w--w--w-  update
 ```
 
-**Safety boundary:** no reads of sysfs attribute contents were performed in
-this capture; only directory listing. For follow-ups, start with explicitly
+**Original listing scope:** the first capture included only directory metadata.
+Selected attribute contents were subsequently read without writes on the same
+stock system; see the EPDC readout linked below. For follow-ups, start with explicitly
 read-only metadata (`waveform_info`, `waveform_status`, `waveform_name`) and
 avoid writes to `vcom`, `vcom_permanent`, power sequences, waveform control,
 register accesses, `fill`, `update` or `vni_test`. Reading an ostensibly
@@ -171,3 +172,16 @@ the cause of intermittent power-on when CP2104 is attached.
    no controlled A/B has proven that the marker caused prior failures.
 6. Mainline **Phase 0 hardware UAT remains PENDING**. No FEL/DFU/mainline
    boot has been demonstrated by these stock-firmware captures.
+## EPDC register-free readout (2026-10-14)
+
+Additional read-only output from the live `sw-epdc` sysfs endpoint documents
+waveform modes, 15 temperature boundaries / 14 numeric entries per mode,
+`Applied params: 1024x760` (distinct from 1024x758 framebuffer),
+`vcom=-2.96`, ambient temperature 31, and verbatim power-up/down sequences
+for `vdd`, `vneg`, `vee`, `vpos`, `vgg` and `vcom`.
+
+The **full readout, value table, limitations and safe follow-up** are recorded
+in [stock EPDC runtime parameters](stock-firmware-epdc-2026-10-14.md).
+The sequence grammar, numeric units, and 1024x760 significance have not yet
+been established. This capture replaces the earlier statement that attribute
+*contents* had not been read; no sysfs control writes have been performed.
